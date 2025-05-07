@@ -50,7 +50,7 @@ mqttClient.on('message', async (topic, message) => {
   // Se já recebeu os dois valores, verifica tempo e insere se necessário
   if (ultimoValor.temperatura !== null && ultimoValor.umidade !== null  && ultimoValor.rele !== null) {
     const { data, error } = await supabase
-      .from(BANCO_DE_DADOS)
+      .from(process.env.BANCO_DE_DADOS)
       .select('created_at')
       .order('created_at', { ascending: false })
       .limit(1);
@@ -66,7 +66,7 @@ mqttClient.on('message', async (topic, message) => {
     console.log(ultimoValor)
     if (minutosPassados >= 15) {
       const { error: insertError } = await supabase
-        .from(BANCO_DE_DADOS)
+        .from(process.env.BANCO_DE_DADOS)
         .insert([
           {
             temperatura: ultimoValor.temperatura,
