@@ -1,0 +1,161 @@
+esphome:
+  name: esp32_temperatura
+  friendly_name: "ESP32 Dev Board"  # Opcional
+
+esp32:
+  board: esp32dev  # Placa genérica ESP32 Dev Module
+  framework:
+    type: arduino  # Padrão (pode omitir se for usar Arduino)
+
+# Configurações de Wi-Fi (obrigatório para conexão)
+wifi:
+  ssid: wifi_ssid
+  password: wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ap_ssid
+    password: ap_password
+
+
+# Habilita recursos básicos (opcional mas recomendado)
+logger:
+
+api:
+  password: api_password
+
+ota:
+  platform: ota_platform
+  password: ota_password  # Senha para atualizações (opcional)
+
+
+# Configuração do barramento I2C para o OLED
+i2c:
+  sda: 21
+  scl: 22
+  scan: true
+
+# Sensor DHT11
+sensor:
+  - platform: dht
+    pin: 19
+    temperature:
+      name: "Temperatura Sala"
+      id: temp_ambiente
+      on_value:
+        then:
+          - script.execute: controle_rele
+    humidity:
+      name: "Umidade Sala"
+    update_interval: 30s
+    model: DHT11
+
+mqtt:
+  broker: mqtt_broker  # IP do seu servidor MQTT
+  port: mqtt_port
+  username: mqtt_username  # se necessário
+  password: mqtt_password    # se necessário
+  client_id: mqtt_client_id  # ID do cliente MQTT
+  discovery: true
+
+
+# Saída do relê
+switch:
+  - platform: gpio
+    pin: 23
+    id: rele_saida
+    name: "Rele"
+
+# Variáveis globais
+globals:
+  - id: temperatura_ligar
+    type: float
+    restore_value: yes
+    initial_value: '25.0'
+
+  - id: temperatura_desligar
+    type: float
+    restore_value: yes
+    initial_value: '21.0'
+
+  - id: modo_selecionado
+    type: int
+    restore_value: no
+    initial_value: '0'  # 0: temperatura, 1: set_ligar, 2: set_desligar
+
+# Script de controle do relê
+script:
+  - id: controle_rele
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(temp_ambiente).state >= id(temperatura_ligar);
+          then:
+            - switch.turn_on: rele_saida
+      - if:
+          condition:
+            lambda: |-
+              return id(temp_ambiente).state <= id(temperatura_desligar);
+          then:
+            - switch.turn_off: rele_saida
+
+# Botões físicos
+binary_sensor:
+  - platform: gpio
+    pin: 15
+    name: "Botão Aumentar"
+    on_press:
+      then:
+        - lambda: |-
+            if (id(modo_selecionado) == 1) {
+              id(temperatura_ligar) += 0.5;
+            } else if (id(modo_selecionado) == 2) {
+              id(temperatura_desligar) += 0.5;
+            }
+
+  - platform: gpio
+    pin: 4
+    name: "Botão Diminuir"
+    on_press:
+      then:
+        - lambda: |-
+            if (id(modo_selecionado) == 1) {
+              id(temperatura_ligar) -= 0.5;
+            } else if (id(modo_selecionado) == 2) {
+              id(temperatura_desligar) -= 0.5;
+            }
+
+  - platform: gpio
+    pin: 2
+    name: "Botão Modo"
+    on_press:
+      then:
+        - lambda: |-
+            id(modo_selecionado) = (id(modo_selecionado) + 1) % 3;
+
+# Fonte para o display
+font:
+  - file: "gfonts://Roboto"
+    id: font_default
+    size: 12
+
+
+# Display OLED
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    address: 0x3C
+    update_interval: 1s
+    lambda: |-
+      it.printf(0, 0, id(font_default), "Temp: %.1f°C", id(temp_ambiente).state);
+
+      if (id(modo_selecionado) == 0) {
+        it.print(0, 20, id(font_default), "Modo: Temp");
+      } else if (id(modo_selecionado) == 1) {
+        it.printf(0, 20, id(font_default), "Set Ligar: %.1f", id(temperatura_ligar));
+      } else {
+        it.printf(0, 20, id(font_default), "Set Deslig: %.1f", id(temperatura_desligar));
+      }
+
+      it.printf(0, 40, id(font_default), "Rele: %s", id(rele_saida).state ? "ON" : "OFF");

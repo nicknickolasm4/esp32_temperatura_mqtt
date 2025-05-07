@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gráfico de Temperatura e Umidade</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    #messages {
+      margin-top: 20px;
+    }
+    .message {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    canvas {
+      max-width: 100%;
+    }
+    #data-selector {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>WebSocket - Dados do ESP32</h1>
+
+  <div id="messages">
+    <div class="message umidade-sala"></div>
+    <div class="message temperatura-sala"></div>
+    <div class="message status-ventilador"></div>
+  </div>
+
+  <div id="data-selector">
+    <label for="date">Selecionar data:</label>
+    <input type="date" id="date">
+    <button onclick="filtrarPorData()">Filtrar</button>
+    <button onclick="getData()">Últimas 24h</button>
+  </div>
+
+  <h2>Gráfico de Temperatura | Umidade | Status do ventilador</h2>
+  <canvas id="chart"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    const client = mqtt.connect('URL_MQTT', {
+      username: 'USER_MQTT',
+      password: 'PASS_MQTT'
+    });
+
+    const supabase = window.supabase.createClient(
+      'https://URLSUPABASE.supabase.co',
+      'SUA_CHAVE_SUPABASE'
+    );
+
+    client.on('connect', function () {
+      client.subscribe('esp32_temperatura/sensor/umidade_sala/state');
+      client.subscribe('esp32_temperatura/sensor/temperatura_sala/state');
+      client.subscribe('esp32_temperatura/switch/rele/state');
+    });
+
+    client.on('message', function (topic, message) {
+      const msg = message.toString();
+
+      if (topic === 'esp32_temperatura/sensor/umidade_sala/state') {
+        document.querySelector('.umidade-sala').innerHTML = `<strong>Umidade da sala:</strong> ${msg}%`;
+      } else if (topic === 'esp32_temperatura/sensor/temperatura_sala/state') {
+        document.querySelector('.temperatura-sala').innerHTML = `<strong>Temperatura da sala:</strong> ${msg}°C`;
+      } else if (topic === 'esp32_temperatura/switch/rele/state') {
+        document.querySelector('.status-ventilador').innerHTML = `<strong>Status do ventilador:</strong> ${msg === '1' ? 'Ativo' : 'Desativado'}`;
+      }
+    });
+
+    client.on('error', function (err) {
+      console.error('Erro de conexão MQTT: ', err);
+    });
+
+
+
+    let chartInstance = null;
+
+    async function getData() {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from('temperaturas_teste')
+        .select('created_at, temperatura, umidade, status')
+        .gte('created_at', since)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar dados do Supabase: ', error);
+        return;
+      }
+
+      renderChart(data);
+    }
+
+    async function filtrarPorData() {
+      const dateInput = document.getElementById('date').value;
+      if (!dateInput) return;
+
+      const start = new Date(`${dateInput}T00:00:00`);
+      const end = new Date(`${dateInput}T23:59:59`);
+
+      const { data, error } = await supabase
+        .from('temperaturas_teste')
+        .select('created_at, temperatura, umidade, status')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar dados por data: ', error);
+        return;
+      }
+
+      renderChart(data);
+    }
+
+    function renderChart(data) {
+      const labels = data.map(item => {
+        const date = new Date(item.created_at);
+        date.setHours(date.getHours() - 3); // Ajuste para UTC-3
+        return date.toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+      });
+
+      const temperaturas = data.map(item => item.temperatura);
+      const umidades = data.map(item => item.umidade);
+      const status = data.map(item => item.status);
+
+      const ctx = document.getElementById('chart').getContext('2d');
+
+      // Destruir gráfico anterior
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Temperatura (°C)',
+              data: temperaturas,
+              borderColor: 'rgb(255, 99, 132)',
+              fill: false
+            },
+            {
+              label: 'Umidade (%)',
+              data: umidades,
+              borderColor: 'rgb(54, 162, 235)',
+              fill: false
+            },
+            {
+              label: 'Status do ventilador',
+              data: status.map(s => s === 1 ? 1 : 0),
+              borderColor: 'rgb(75, 192, 192)',
+              fill: false,
+              pointRadius: 5,
+              pointBackgroundColor: status.map(s => s === 1 ? 'green' : 'red'),
+              pointHoverRadius: 7
+            }
+          ]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      });
+    }
+
+    // Carrega os dados ao iniciar
+    getData();
+  </script>
+</body>
+</html>
