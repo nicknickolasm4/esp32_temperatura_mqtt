@@ -19,6 +19,23 @@ Inicialmente implementado com Arduino, evoluímos para uma solução mais robust
 - Armazenamento dos dados no Supabase via Node.js
 - Interface web em tempo real com WebSocket e gráficos
 
+## 🔌 Configuração na Protoboard
+
+| Componente            | Pino no ESP32 |
+|-----------------------|---------------|
+| **I2C SDA (LCD)**     | GPIO 21       |
+| **I2C SCL (LCD)**     | GPIO 22       |
+| **Sensor DHT11**      | GPIO 19       |
+| **Relé (ventilador)** | GPIO 23       |
+| **Botão Aumentar**    | GPIO 15       |
+| **Botão Diminuir**    | GPIO 4        |
+| **Botão Modo**        | GPIO 2        |
+
+O botão "Modo" permite alternar entre os modos de configuração:
+- Temperatura para ligar o ventilador
+- Temperatura para desligar o ventilador
+- Visualização da temperatura atual
+
 ## 🧩 Tecnologias Utilizadas
 
 - **Hardware:** ESP32, DHT11, LCD I2C 128x64, Módulo Relé, Botões
@@ -27,6 +44,13 @@ Inicialmente implementado com Arduino, evoluímos para uma solução mais robust
 - **Backend:** Node.js, PM2
 - **Banco de Dados:** [Supabase](https://supabase.com/)
 - **Frontend:** HTML, JavaScript (WebSockets + Charts)
+
+## 🌐 Interface Web
+
+A interface web exibe em tempo real:
+- Temperatura atual (°C)
+- Umidade relativa (%)
+- Status do ventilador (Ligado/Desligado)
 
 ##
 ##
