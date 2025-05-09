@@ -95,6 +95,14 @@ A interface web exibe em tempo real:
 
 A interface web exibe temperatura, umidade e status do ventilador com gráficos dinâmicos atualizados em tempo real.
 
+## 👥 Autores
+
+- Nickolas Mariano dos Santos – [@nicknickolasm4](https://github.com/nicknickolasm4) [@nickamarianoo](https://github.com/nickamarianoo)
+- Isabelle Marcelino Rodrigues – [@Isah.Rodrigues08](https://www.instagram.com/isah.rodrigues08)
+- Mayumi Sakete Carvalho Tomaz  – [@mayumitomaz](https://www.instagram.com/mayumitomaz/)
+
+---
+
 ## 🤝 Contribuições
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou enviar pull requests.
